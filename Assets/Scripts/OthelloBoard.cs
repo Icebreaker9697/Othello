@@ -16,8 +16,6 @@ public class OthelloBoard : MonoBehaviour
 
     private Vector2 mouseOver;
 
-    private Vector2 selectedSquare;
-
     public int whiteScore;
     public int blackScore;
 
@@ -53,8 +51,8 @@ public class OthelloBoard : MonoBehaviour
 
                 if (Input.GetMouseButtonDown(0))
                 {
-                    SelectSquare(x, y, pieces);
-                    TryMove(pieces, isWhiteTurn);
+                    Vector2 selectedSquare = SelectSquare(x, y, pieces);
+                    TryMove(pieces, isWhiteTurn, selectedSquare);
                 }
             }
             else if (!isWhiteTurn)
@@ -70,8 +68,8 @@ public class OthelloBoard : MonoBehaviour
         Move m = getMaxScoreMove(possibleMoves);
         int x = (int)m.getSquare().x;
         int y = (int)m.getSquare().y;
-        SelectSquare(x, y, board);
-        TryMove(board, isItWhiteTurn);
+        Vector2 selectedSquare = SelectSquare(x, y, board);
+        TryMove(board, isItWhiteTurn, selectedSquare);
     }
 
     private List<Move> getPossibleMoves(Piece[,] board, bool isItWhiteTurn)
@@ -93,10 +91,10 @@ public class OthelloBoard : MonoBehaviour
         return res;
     }
 
-    private void TryMove(Piece[,] board, bool isItWhiteTurn)
+    private void TryMove(Piece[,] board, bool isItWhiteTurn, Vector2 chosenSquare)
     {
-        int x = (int)selectedSquare.x;
-        int y = (int)selectedSquare.y;
+        int x = (int)chosenSquare.x;
+        int y = (int)chosenSquare.y;
         List<Vector2> tilesToFlip = new List<Vector2>();
         if(IsValidMove(x, y, tilesToFlip, board, isItWhiteTurn))
         {
@@ -104,6 +102,19 @@ public class OthelloBoard : MonoBehaviour
             FlipTiles(tilesToFlip, board);
             EndTurn(false, board);
         }       
+    }
+
+    private void MakeMove(Piece[,] board, bool isItWhiteTurn, Vector2 chosenSquare)
+    {
+        int x = (int)chosenSquare.x;
+        int y = (int)chosenSquare.y;
+        List<Vector2> tilesToFlip = new List<Vector2>();
+        if (IsValidMove(x, y, tilesToFlip, board, isItWhiteTurn))
+        {
+            GeneratePiece(x, y, isItWhiteTurn ? PieceColor.White : PieceColor.Black, board);
+            FlipTiles(tilesToFlip, board);
+            EndTurn(false, board);
+        }
     }
 
     private void FlipTiles(List<Vector2> tilesToFlip, Piece[,] board)
@@ -266,15 +277,16 @@ public class OthelloBoard : MonoBehaviour
         }
     }
 
-    private void SelectSquare(int x, int y, Piece[,] board)
+    private Vector2 SelectSquare(int x, int y, Piece[,] board)
     {
         //Out of bounds
         if(x < 0 || x >= board.GetLength(0) || y < 0 || y >= board.GetLength(1))
         {
-            return;
+            return new Vector2();
         }
 
-        selectedSquare = new Vector2(x, y);
+        Vector2 chosenSquare = new Vector2(x, y);
+        return chosenSquare;
     }
 
     private void GenerateBoard(Piece[,] board)
@@ -335,11 +347,51 @@ public class OthelloBoard : MonoBehaviour
         }
     }
 
-    /*private Vector2 minimaxDecision(Piece[,] board, bool isWhiteTurn)
+    private Vector2 minimaxDecision(Piece[,] board, bool isWhiteTurn)
     {
         Vector2 res = new Vector2();
         List<Move> curPossibleMoves = getPossibleMoves(board, isWhiteTurn);
-    }*/
+        int numMoves = curPossibleMoves.Count;
+        
+        if(numMoves == 0)
+        {
+            res.x = -1;
+            res.y = -1;
+        }
+        else
+        {
+            //Remember the best move
+            int bestMoveVal = System.Int32.MinValue;
+            Vector2 bestMove = curPossibleMoves[0].getSquare();
+
+            //Try out every single move
+            for(int i = 0; i < numMoves; i++)
+            {
+                //Apply the move to a new board;
+                Piece[,] tmpBoard = CopyBoard(board);
+
+            }
+        }
+        return res;
+    }
+
+    private Piece[,] CopyBoard(Piece[,] source)
+    {
+        Piece[,] result = new Piece[source.GetLength(0), source.GetLength(1)];
+
+        for(int i = 0; i < source.GetLength(0); i++)
+        {
+            for(int j = 0; j < source.GetLength(1); j++)
+            {
+                if(source[i,j] != null)
+                {
+                    result[i, j] = new Piece(source[i, j]);
+                }
+            }
+        }
+
+        return result;
+    }
 
     private class Move
     {
