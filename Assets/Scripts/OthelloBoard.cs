@@ -19,7 +19,11 @@ public class OthelloBoard : MonoBehaviour
     public int whiteScore;
     public int blackScore;
 
+    private bool aiFinished = true;
+
     public int numPossible;
+
+    private int minimaxLevels = 7;
 
     public bool gameOver;
 
@@ -33,43 +37,52 @@ public class OthelloBoard : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (!gameOver)
-        {
-            List<Move> possibleMoves = getPossibleMoves(pieces, isWhiteTurn);
-            numPossible = possibleMoves.Count;
-            if (possibleMoves.Count == 0)
+            if (!gameOver)
             {
-                EndTurn(true, pieces);
-            }
-
-            if (isWhiteTurn)
-            {
-                UpdateMouseOver();
-
-                int x = (int)mouseOver.x;
-                int y = (int)mouseOver.y;
-
-                if (Input.GetMouseButtonDown(0))
+                List<Move> possibleMoves = getPossibleMoves(pieces, isWhiteTurn);
+                numPossible = possibleMoves.Count;
+                if (possibleMoves.Count == 0)
                 {
+                    EndTurn(true, pieces);
+                }
+
+                if (isWhiteTurn)
+                {
+                    UpdateMouseOver();
+
+                    int x = (int)mouseOver.x;
+                    int y = (int)mouseOver.y;
+
+                    if (Input.GetMouseButtonDown(0))
+                    {
+                        Vector2 selectedSquare = SelectSquare(x, y, pieces);
+                        TryMove(pieces, isWhiteTurn, selectedSquare);
+                    }
+                }
+                else if (!isWhiteTurn && aiFinished)
+                {
+                    /*Move m = MinimaxDecision(pieces, isWhiteTurn);
+                    //Move m = getMaxScoreMove(possibleMoves);
+                    int x = (int)m.getSquare().x;
+                    int y = (int)m.getSquare().y;
                     Vector2 selectedSquare = SelectSquare(x, y, pieces);
-                    TryMove(pieces, isWhiteTurn, selectedSquare);
+                    TryMove(pieces, isWhiteTurn, selectedSquare);*/
+                    aiFinished = false;
+                    StartCoroutine(Wait(possibleMoves, pieces, isWhiteTurn));
                 }
             }
-            else if (!isWhiteTurn)
-            {
-                StartCoroutine(Wait(possibleMoves, pieces, isWhiteTurn));
-            }
-        }  
     }
 
     IEnumerator Wait(List<Move> possibleMoves, Piece[,] board, bool isItWhiteTurn)
     {
         yield return new WaitForSeconds(.5f);
-        Move m = getMaxScoreMove(possibleMoves);
+        Move m = MinimaxDecision(board, isItWhiteTurn);
+        //Move m = getMaxScoreMove(possibleMoves);
         int x = (int)m.getSquare().x;
         int y = (int)m.getSquare().y;
         Vector2 selectedSquare = SelectSquare(x, y, board);
         TryMove(board, isItWhiteTurn, selectedSquare);
+        aiFinished = true;
     }
 
     private List<Move> getPossibleMoves(Piece[,] board, bool isItWhiteTurn)
@@ -91,20 +104,26 @@ public class OthelloBoard : MonoBehaviour
         return res;
     }
 
-    private void TryMove(Piece[,] board, bool isItWhiteTurn, Vector2 chosenSquare)
+    private List<Move> getPossibleMovesTest(char[,] board, bool isItWhiteTurn)
     {
-        int x = (int)chosenSquare.x;
-        int y = (int)chosenSquare.y;
-        List<Vector2> tilesToFlip = new List<Vector2>();
-        if(IsValidMove(x, y, tilesToFlip, board, isItWhiteTurn))
+        List<Move> res = new List<Move>();
+        for (int i = 0; i < board.GetLength(0); i++)
         {
-            GeneratePiece(x, y, isItWhiteTurn ? PieceColor.White : PieceColor.Black, board);
-            FlipTiles(tilesToFlip, board);
-            EndTurn(false, board);
-        }       
+            for (int j = 0; j < board.GetLength(1); j++)
+            {
+                List<Vector2> tilesToFlip = new List<Vector2>();
+                Vector2 square = new Vector2(i, j);
+                if (IsValidMoveTest(i, j, tilesToFlip, board, isItWhiteTurn))
+                {
+                    Move m = new Move(tilesToFlip, square);
+                    res.Add(m);
+                }
+            }
+        }
+        return res;
     }
 
-    private void MakeMove(Piece[,] board, bool isItWhiteTurn, Vector2 chosenSquare)
+    private void TryMove(Piece[,] board, bool isItWhiteTurn, Vector2 chosenSquare)
     {
         int x = (int)chosenSquare.x;
         int y = (int)chosenSquare.y;
@@ -117,15 +136,48 @@ public class OthelloBoard : MonoBehaviour
         }
     }
 
+    private char[,] MakeMove(char[,] board, bool isItWhiteTurn, Vector2 chosenSquare)
+    {
+        int x = (int)chosenSquare.x;
+        int y = (int)chosenSquare.y;
+        List<Vector2> tilesToFlip = new List<Vector2>();
+        if (IsValidMoveTest(x, y, tilesToFlip, board, isItWhiteTurn))
+        {
+            char p = isItWhiteTurn ? 'W' : 'B';
+            board[x, y] = p;
+            //specify that we are flipping just in the board array, using the true boolean
+            FlipTiles(tilesToFlip, board, true);
+        }
+        return board;
+    }
+
     private void FlipTiles(List<Vector2> tilesToFlip, Piece[,] board)
     {
-        for(int i = 0; i < tilesToFlip.Count; i++)
+        for (int i = 0; i < tilesToFlip.Count; i++)
         {
             Vector2 squareToFlip = tilesToFlip[i];
             int x = (int)squareToFlip.x;
             int y = (int)squareToFlip.y;
             FlipPiece(x, y, board);
         }
+    }
+
+    private char[,] FlipTiles(List<Vector2> tilesToFlip, char[,] board, bool forMinimax)
+    {
+        for (int i = 0; i < tilesToFlip.Count; i++)
+        {
+            Vector2 squareToFlip = tilesToFlip[i];
+            int x = (int)squareToFlip.x;
+            int y = (int)squareToFlip.y;
+            if(board[x,y] == 'W')
+            {
+                board[x, y] = 'B';
+            } else if(board[x,y] == 'B')
+            {
+                board[x, y] = 'W';
+            }
+        }
+        return board;
     }
 
     //Algorithm logic found on https://inventwithpython.com/chapter15.html
@@ -199,8 +251,83 @@ public class OthelloBoard : MonoBehaviour
         return true;
     }
 
+    private bool IsValidMoveTest(int selectedX, int selectedY, List<Vector2> tilesToFlip, char[,] board, bool isItWhiteTurn)
+    {
+        if (board[selectedX, selectedY] != '\0' || !isOnBoardTest(selectedX, selectedY, board))
+        {
+            return false;
+        }
+
+        Vector2[] offsets = { new Vector2(0, 1), new Vector2(1, 1), new Vector2(1, 0), new Vector2(1, -1), new Vector2(0, -1), new Vector2(-1, -1), new Vector2(-1, 0), new Vector2(-1, 1) };
+
+        for (int direction = 0; direction < offsets.Length; direction++)
+        {
+            int x = selectedX;
+            int y = selectedY;
+            int xOffset = (int)offsets[direction].x;
+            int yOffset = (int)offsets[direction].y;
+
+            x = x + xOffset;
+            y = y + yOffset;
+            if (isOnBoardTest(x, y, board) && board[x, y] != '\0' && (board[x, y] == 'W') != isItWhiteTurn)
+            {
+                //We know there is an opponent piece in the current direction that is next to our player
+                x = x + xOffset;
+                y = y + yOffset;
+
+                //check the next square after that to see if it is on the board
+                if (!isOnBoardTest(x, y, board))
+                {
+                    continue;
+                }
+
+                //while the pieces are not the same color
+                while (board[x, y] != '\0' && (board[x, y] == 'W') != isItWhiteTurn)
+                {
+                    x = x + xOffset;
+                    y = y + yOffset;
+                    if (!isOnBoardTest(x, y, board))
+                    {
+                        break;
+                    }
+                }
+
+                if (!isOnBoardTest(x, y, board))
+                {
+                    continue;
+                }
+                if (board[x, y] != '\0' && (board[x, y] == 'W') == isItWhiteTurn)
+                {
+                    while (true)
+                    {
+                        x -= xOffset;
+                        y -= yOffset;
+                        if (x == selectedX && y == selectedY)
+                        {
+                            break;
+                        }
+                        Vector2 toFlip = new Vector2(x, y);
+                        tilesToFlip.Add(toFlip);
+                    }
+                }
+            }
+        }
+
+        board[selectedX, selectedY] = '\0';
+        if (tilesToFlip.Count == 0)
+        {
+            return false;
+        }
+        return true;
+    }
+
 
     private bool isOnBoard(int x, int y, Piece[,] board)
+    {
+        return x >= 0 && x < board.GetLength(0) && y >= 0 && y < board.GetLength(0);
+    }
+
+    private bool isOnBoardTest(int x, int y, char[,] board)
     {
         return x >= 0 && x < board.GetLength(0) && y >= 0 && y < board.GetLength(0);
     }
@@ -224,14 +351,14 @@ public class OthelloBoard : MonoBehaviour
         Vector2 scores = new Vector2();
         int white = 0;
         int black = 0;
-        for(int i = 0; i < board.GetLength(0); i++)
+        for (int i = 0; i < board.GetLength(0); i++)
         {
-            for(int j = 0; j < board.GetLength(1); j++)
+            for (int j = 0; j < board.GetLength(1); j++)
             {
-                if (board[i,j] && board[i, j].isWhite)
+                if (board[i, j] && board[i, j].isWhite)
                 {
                     white++;
-                } else if(board[i,j] && !board[i, j].isWhite)
+                } else if (board[i, j] && !board[i, j].isWhite)
                 {
                     black++;
                 }
@@ -243,11 +370,39 @@ public class OthelloBoard : MonoBehaviour
         scores.x = whiteScore;
         scores.y = blackScore;
 
-        if(whiteScore == 0 || blackScore == 0)
+        if (whiteScore == 0 || blackScore == 0 || whiteScore + blackScore == 64)
         {
             EndGame();
             return scores;
         }
+        return scores;
+    }
+
+    private Vector2 GetScoreTest(char[,] board)
+    {
+        Vector2 scores = new Vector2();
+        int white = 0;
+        int black = 0;
+        for (int i = 0; i < board.GetLength(0); i++)
+        {
+            for (int j = 0; j < board.GetLength(1); j++)
+            {
+                if (board[i, j] == 'W')
+                {
+                    white++;
+                }
+                else if (board[i, j] == 'B')
+                {
+                    black++;
+                }
+            }
+        }
+        whiteScore = white;
+        blackScore = black;
+
+        scores.x = whiteScore;
+        scores.y = blackScore;
+
         return scores;
     }
 
@@ -265,7 +420,7 @@ public class OthelloBoard : MonoBehaviour
         }
 
         RaycastHit hit;
-        if(Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, 25.0f, LayerMask.GetMask("Board")))
+        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, 25.0f, LayerMask.GetMask("Board")))
         {
             mouseOver.x = (int)(hit.point.x - boardOffset.x);
             mouseOver.y = (int)(hit.point.z - boardOffset.z);
@@ -280,7 +435,7 @@ public class OthelloBoard : MonoBehaviour
     private Vector2 SelectSquare(int x, int y, Piece[,] board)
     {
         //Out of bounds
-        if(x < 0 || x >= board.GetLength(0) || y < 0 || y >= board.GetLength(1))
+        if (x < 0 || x >= board.GetLength(0) || y < 0 || y >= board.GetLength(1))
         {
             return new Vector2();
         }
@@ -331,9 +486,9 @@ public class OthelloBoard : MonoBehaviour
         board[x, y].transform.Rotate(0, 0, 180);
     }
 
-    private int heuristic(Piece[,] board, bool isWhiteTurn)
+    private int Heuristic(char[,] board, bool isWhiteTurn)
     {
-        Vector2 scores = GetScore(board);
+        Vector2 scores = GetScoreTest(board);
         int whiteScore = (int)scores.x;
         int blackScore = (int)scores.y;
 
@@ -347,37 +502,135 @@ public class OthelloBoard : MonoBehaviour
         }
     }
 
-    private Vector2 minimaxDecision(Piece[,] board, bool isWhiteTurn)
+    private Move MinimaxDecision(Piece[,] board, bool isItWhiteTurn)
     {
-        Vector2 res = new Vector2();
-        List<Move> curPossibleMoves = getPossibleMoves(board, isWhiteTurn);
+        Move res = null;
+        List<Move> curPossibleMoves = getPossibleMoves(board, isItWhiteTurn);
         int numMoves = curPossibleMoves.Count;
-        
-        if(numMoves == 0)
+
+        if (numMoves == 0)
         {
-            res.x = -1;
-            res.y = -1;
+            res = null;
         }
         else
         {
             //Remember the best move
             int bestMoveVal = System.Int32.MinValue;
-            Vector2 bestMove = curPossibleMoves[0].getSquare();
+            Move bestMove = curPossibleMoves[0];
 
             //Try out every single move
-            for(int i = 0; i < numMoves; i++)
+            for (int i = 0; i < numMoves; i++)
             {
+                Vector2 chosenSquare = curPossibleMoves[i].getSquare();
                 //Apply the move to a new board;
-                Piece[,] tmpBoard = CopyBoard(board);
+                char[,] tmpBoard = CopyBoard(board);
+                tmpBoard = MakeMove(tmpBoard, isItWhiteTurn, chosenSquare);
+                //Recursive call, initial search ply = 1
+                int val = minimaxValue(tmpBoard, isItWhiteTurn, !isItWhiteTurn, 1);
 
+                if (val > bestMoveVal)
+                {
+                    bestMoveVal = val;
+                    bestMove = curPossibleMoves[i];
+                }
             }
+            //return the best move
+            res = bestMove;
         }
         return res;
     }
 
-    private Piece[,] CopyBoard(Piece[,] source)
+    private int minimaxValue(char[,] board, bool originallyIsItWhiteTurn, bool currentlyIsItWhiteTurn, int searchPly)
     {
-        Piece[,] result = new Piece[source.GetLength(0), source.GetLength(1)];
+        if ((searchPly == 5) || IsGameOver(board)){
+            return Heuristic(board, originallyIsItWhiteTurn);
+        }
+        Vector2 resultMove = new Vector2();
+
+        //this line might be a problem
+        bool opponent = !currentlyIsItWhiteTurn;
+
+        List<Move> curPossibleMoves = getPossibleMovesTest(board, currentlyIsItWhiteTurn);
+        int numMoves = curPossibleMoves.Count;
+        if(numMoves == 0)//if there are no moves, then skip to the next players turn
+        {
+            return minimaxValue(board, originallyIsItWhiteTurn, opponent, searchPly + 1);
+        }
+        else
+        {
+            //Rememeber the best move
+            int bestMoveVal = System.Int32.MinValue; //for finding max
+
+            if(originallyIsItWhiteTurn != currentlyIsItWhiteTurn)
+            {
+                bestMoveVal = System.Int32.MaxValue; //for finding min
+            }
+
+            //try out every single move
+            for(int i = 0; i < numMoves; i++)
+            {
+                //Apply the move to a new board
+                Vector2 chosenSquare = curPossibleMoves[i].getSquare();
+                char[,] tmpBoard = (char[,])board.Clone();
+                tmpBoard = MakeMove(tmpBoard, currentlyIsItWhiteTurn, chosenSquare);
+
+                //Recursive call
+                int val = minimaxValue(tmpBoard, originallyIsItWhiteTurn, opponent, searchPly + 1);
+
+                //Remember the best move
+                if(originallyIsItWhiteTurn == currentlyIsItWhiteTurn)
+                {
+                    //Remember max if its the originator's turn
+                    if(val > bestMoveVal)
+                    {
+                        bestMoveVal = val;
+                    }
+                }
+                else
+                {
+                    //Remember min if its opponent's turn
+                    if (val < bestMoveVal)
+                    {
+                        bestMoveVal = val;
+                    }
+                }
+            }
+            return bestMoveVal;
+        }
+        return -1; //should never get here
+    }
+
+    private bool IsGameOver(char[,] board)
+    {
+        int white = 0;
+        int black = 0;
+        for (int i = 0; i < board.GetLength(0); i++)
+        {
+            for (int j = 0; j < board.GetLength(1); j++)
+            {
+                if (board[i, j] == 'W')
+                {
+                    white++;
+                }
+                else if (board[i, j] == 'B')
+                {
+                    black++;
+                }
+            }
+        }
+        whiteScore = white;
+        blackScore = black;
+
+        if (whiteScore == 0 || blackScore == 0 || whiteScore + blackScore == 64)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private char[,] CopyBoard(Piece[,] source)
+    {
+        char[,] result = new char[source.GetLength(0), source.GetLength(1)];
 
         for(int i = 0; i < source.GetLength(0); i++)
         {
@@ -385,7 +638,7 @@ public class OthelloBoard : MonoBehaviour
             {
                 if(source[i,j] != null)
                 {
-                    result[i, j] = new Piece(source[i, j]);
+                    result[i, j] = (source[i, j].isWhite) ? 'W' : 'B';
                 }
             }
         }

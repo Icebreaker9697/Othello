@@ -11,6 +11,11 @@ public class Piece : MonoBehaviour
         isWhite = p.isWhite;
     }
 
+    public Piece(bool isItWhite)
+    {
+        isWhite = isItWhite;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
