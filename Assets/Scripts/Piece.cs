@@ -27,4 +27,18 @@ public class Piece : MonoBehaviour
     {
         
     }
+
+    /*public void OnCollisionEnter(Collision collision)
+    {
+        try
+        {
+            //Destroy(this.GetComponent<Rigidbody>());
+            this.GetComponent<Rigidbody>().useGravity = false;
+            this.GetComponent<BoxCollider>().enabled = false;
+        }
+        catch
+        {
+
+        }
+    }*/
 }

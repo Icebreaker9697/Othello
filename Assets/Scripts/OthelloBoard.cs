@@ -460,13 +460,15 @@ public class OthelloBoard : MonoBehaviour
         MovePiece(p, x, y);
         if (color == PieceColor.White)
         {
-            FlipPiece(p);
             p.isWhite = true;
+            p.transform.Rotate(0, 0, 180);
+            FlipPiece(p);
         }
         else
         {
             p.isWhite = false;
         }
+        //FlipPiece(p);
 
         board[x, y] = p;
     }
@@ -477,13 +479,20 @@ public class OthelloBoard : MonoBehaviour
     }
     private void FlipPiece(Piece p)
     {
-        p.transform.Rotate(0, 0, 180);
+        Animator anim = p.GetComponentInChildren<Animator>();
+        anim.SetBool("IsWhite", p.isWhite);
+        //p.transform.Rotate(0, 0, 180);
     }
 
     private void FlipPiece(int x, int y, Piece[,] board)
     {
         board[x, y].isWhite = !board[x, y].isWhite;
-        board[x, y].transform.Rotate(0, 0, 180);
+        Piece p = board[x, y];
+        Animator anim = p.GetComponentInChildren<Animator>();
+        anim.SetBool("IsWhite", p.isWhite);
+
+        
+        //board[x, y].transform.Rotate(0, 0, 180);
     }
 
     private int Heuristic(char[,] board, bool isWhiteTurn)
