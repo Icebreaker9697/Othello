@@ -1,12 +1,14 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class OthelloBoard : MonoBehaviour
 {
     enum PieceColor { White, Black };
 
-    public Piece[,] pieces = new Piece[8, 8];
+    public Piece[,] pieces;
     public GameObject piecePrefab;
 
     private Vector3 boardOffset = new Vector3(-4.0f, 1.5f, -4.0f);
@@ -14,31 +16,80 @@ public class OthelloBoard : MonoBehaviour
 
     public bool isWhiteTurn;
 
+    public TextMeshProUGUI blackScoreBoard;
+    public TextMeshProUGUI whiteScoreBoard;
+
+    public TextMeshProUGUI gameOverText;
+
+    public TextMeshProUGUI indicator;
+
+    public Button newSoloGameButton;
+
+    public Button newTwoPlayerGameButton;
+
+    public Dropdown levelSelect;
+
+    public Button quitGame;
+
+    public Image gameOverBackground;
+
     private Vector2 mouseOver;
 
     public int whiteScore;
     public int blackScore;
 
-    private bool aiFinished = true;
+    private bool aiFinished;
 
     public int numPossible;
 
-    private int minimaxLevels = 7;
+    public int minimaxLevels = 1;
 
     public bool gameOver;
+
+    private bool aiGame;
 
     // Start is called before the first frame update
     void Start()
     {
+        gameOver = true;
+        quitGame.gameObject.SetActive(false);
+        //InitializeGame();
+    }
+
+    void InitializeGame()
+    {
+        if(pieces != null)
+            ClearBoard();
+
+        pieces = new Piece[8, 8];
         GenerateBoard(pieces);
         GetScore(pieces);
+        System.Random rand = new System.Random();
+        isWhiteTurn = rand.Next(2) == 0;
+        blackScoreBoard.SetText("");
+        whiteScoreBoard.SetText("");
+        aiFinished = true;
+
+        if (isWhiteTurn)
+            indicator.SetText("White's Turn");
+        else
+            indicator.SetText("Black's Turn");
+
+        gameOverText.enabled = false;
+        gameOverBackground.enabled = false;
+        newSoloGameButton.gameObject.SetActive(false);
+        newTwoPlayerGameButton.gameObject.SetActive(false);
+        levelSelect.gameObject.SetActive(false);
+        quitGame.gameObject.SetActive(true);
+        gameOver = false;
     }
 
     // Update is called once per frame
     void Update()
     {
-            if (!gameOver)
-            {
+        if (!gameOver)
+        {
+            if (aiGame) { 
                 List<Move> possibleMoves = getPossibleMoves(pieces, isWhiteTurn);
                 numPossible = possibleMoves.Count;
                 if (possibleMoves.Count == 0)
@@ -61,16 +112,50 @@ public class OthelloBoard : MonoBehaviour
                 }
                 else if (!isWhiteTurn && aiFinished)
                 {
-                    /*Move m = MinimaxDecision(pieces, isWhiteTurn);
-                    //Move m = getMaxScoreMove(possibleMoves);
-                    int x = (int)m.getSquare().x;
-                    int y = (int)m.getSquare().y;
-                    Vector2 selectedSquare = SelectSquare(x, y, pieces);
-                    TryMove(pieces, isWhiteTurn, selectedSquare);*/
                     aiFinished = false;
                     StartCoroutine(Wait(possibleMoves, pieces, isWhiteTurn));
                 }
             }
+            else
+            {
+                List<Move> possibleMoves = getPossibleMoves(pieces, isWhiteTurn);
+                numPossible = possibleMoves.Count;
+                if (possibleMoves.Count == 0)
+                {
+                    EndTurn(true, pieces);
+                }
+
+                UpdateMouseOver();
+
+                int x = (int)mouseOver.x;
+                int y = (int)mouseOver.y;
+
+                if (Input.GetMouseButtonDown(0))
+                {
+                    Vector2 selectedSquare = SelectSquare(x, y, pieces);
+                    TryMove(pieces, isWhiteTurn, selectedSquare);
+                }
+            }
+        }
+    }
+
+    void ClearBoard()
+    {
+        for(int i = 0; i < pieces.GetLength(0); i++)
+        {
+            for(int j = 0; j < pieces.GetLength(1); j++)
+            {
+                if (pieces[i, j])
+                {
+                    Destroy(pieces[i, j].gameObject);
+                }
+            }
+        }
+    }
+
+    public void SelectLevel()
+    {
+        minimaxLevels = levelSelect.value + 1;
     }
 
     IEnumerator Wait(List<Move> possibleMoves, Piece[,] board, bool isItWhiteTurn)
@@ -83,6 +168,34 @@ public class OthelloBoard : MonoBehaviour
         Vector2 selectedSquare = SelectSquare(x, y, board);
         TryMove(board, isItWhiteTurn, selectedSquare);
         aiFinished = true;
+    }
+
+    public void ButtonNewSoloGame()
+    {
+        aiGame = true;
+        InitializeGame();
+    }
+
+    public void ButtonNewTwoPlayerGame()
+    {
+        aiGame = false;
+        InitializeGame();
+    }
+
+    public void ButtonEndGame()
+    {
+        gameOver = true;
+        gameOverText.SetText("Game Over.");
+        indicator.SetText("");
+        blackScoreBoard.SetText("");
+        whiteScoreBoard.SetText("");
+
+        gameOverBackground.enabled = true;
+        gameOverText.enabled = true;
+        newSoloGameButton.gameObject.SetActive(true);
+        newTwoPlayerGameButton.gameObject.SetActive(true);
+        quitGame.gameObject.SetActive(false);
+        levelSelect.gameObject.SetActive(true);
     }
 
     private List<Move> getPossibleMoves(Piece[,] board, bool isItWhiteTurn)
@@ -335,7 +448,14 @@ public class OthelloBoard : MonoBehaviour
     private void EndTurn(bool wasPassed, Piece[,] board)
     {
         isWhiteTurn = !isWhiteTurn;
+        if (isWhiteTurn)
+            indicator.SetText("White's Turn");
+        else
+            indicator.SetText("Black's Turn");
+
         GetScore(board);
+        blackScoreBoard.SetText("Black: " + blackScore);
+        whiteScoreBoard.SetText("White: " + whiteScore);
 
         if (wasPassed)
         {
@@ -409,6 +529,30 @@ public class OthelloBoard : MonoBehaviour
     private void EndGame()
     {
         gameOver = true;
+        if(blackScore == whiteScore)
+        {
+            gameOverText.SetText("Game Over. It's a Tie!");
+        } else if(blackScore > whiteScore)
+        {
+            gameOverText.SetText("Game Over. Black Wins!");
+        } else if(blackScore < whiteScore)
+        {
+            gameOverText.SetText("Game Over. White Wins!");
+        }
+        else
+        {
+            gameOverText.SetText("Game Over.");
+        }
+        indicator.SetText("");
+        blackScoreBoard.SetText("");
+        whiteScoreBoard.SetText("");
+
+        gameOverBackground.enabled = true;
+        gameOverText.enabled = true;
+        newSoloGameButton.gameObject.SetActive(true);
+        newTwoPlayerGameButton.gameObject.SetActive(true);
+        quitGame.gameObject.SetActive(false);
+        levelSelect.gameObject.SetActive(true);
     }
 
     private void UpdateMouseOver()
@@ -551,7 +695,7 @@ public class OthelloBoard : MonoBehaviour
 
     private int minimaxValue(char[,] board, bool originallyIsItWhiteTurn, bool currentlyIsItWhiteTurn, int searchPly)
     {
-        if ((searchPly == 5) || IsGameOver(board)){
+        if ((searchPly == minimaxLevels) || IsGameOver(board)){
             return Heuristic(board, originallyIsItWhiteTurn);
         }
         Vector2 resultMove = new Vector2();
