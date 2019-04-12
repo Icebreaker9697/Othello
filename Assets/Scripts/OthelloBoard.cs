@@ -25,6 +25,8 @@ public class OthelloBoard : MonoBehaviour
 
     public Button newSoloGameButton;
 
+    public Button exitGameButton;
+
     public Button newTwoPlayerGameButton;
 
     public Dropdown levelSelect;
@@ -51,6 +53,7 @@ public class OthelloBoard : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        minimaxLevels = 1;
         gameOver = true;
         quitGame.gameObject.SetActive(false);
         //InitializeGame();
@@ -81,6 +84,7 @@ public class OthelloBoard : MonoBehaviour
         newTwoPlayerGameButton.gameObject.SetActive(false);
         levelSelect.gameObject.SetActive(false);
         quitGame.gameObject.SetActive(true);
+        exitGameButton.gameObject.SetActive(false);
         gameOver = false;
     }
 
@@ -137,6 +141,11 @@ public class OthelloBoard : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void ExitGame()
+    {
+        Application.Quit();
     }
 
     void ClearBoard()
@@ -196,6 +205,7 @@ public class OthelloBoard : MonoBehaviour
         newTwoPlayerGameButton.gameObject.SetActive(true);
         quitGame.gameObject.SetActive(false);
         levelSelect.gameObject.SetActive(true);
+        exitGameButton.gameObject.SetActive(true);
     }
 
     private List<Move> getPossibleMoves(Piece[,] board, bool isItWhiteTurn)
@@ -553,6 +563,7 @@ public class OthelloBoard : MonoBehaviour
         newTwoPlayerGameButton.gameObject.SetActive(true);
         quitGame.gameObject.SetActive(false);
         levelSelect.gameObject.SetActive(true);
+        exitGameButton.gameObject.SetActive(true);
     }
 
     private void UpdateMouseOver()
